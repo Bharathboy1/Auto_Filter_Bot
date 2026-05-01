@@ -535,20 +535,24 @@ def generate_movie_message(movie_doc, base_name):
     quality_str = ", ".join(sorted(all_qualities)) if all_qualities else "N/A"
     language_str = ", ".join(sorted(all_languages)) if all_languages else "N/A"
     ott_str = ", ".join(sorted(all_ott_platforms)) if all_ott_platforms else "N/A"
+    rating=movie_doc.get("rating", "-")
+    try:
+        r = float(rating)
+    except (TypeError, ValueError):
+        r = 0.0
 
-    display_name = re.sub(r'\s+(?:19|20)\d{2}$', '', base_name).strip()
-
+    rating_text = "-" if r == 0.0 else str(rating)
     return script.MOVIE_UPDATE_NOTIFY_TXT.format(
         poster_url=movie_doc.get("poster_url", ""),
         imdb_url=movie_doc.get("imdb_url", ""),
-        filename=display_name,
+        filename=base_name,
         tag=primary_tag,
-        year=movie_doc.get("year") or "N/A",
+        year=movie_doc.get("year") or "",
         genres=genres,
         ott=ott_str,
         quality=quality_str,
         language=language_str,
         episodes=epi_block,
-        rating=movie_doc.get("rating", "N/A"),
+        rating=rating_text,
         search_link=temp.B_LINK
-    )
+)
