@@ -536,10 +536,12 @@ def generate_movie_message(movie_doc, base_name):
     language_str = ", ".join(sorted(all_languages)) if all_languages else "N/A"
     ott_str = ", ".join(sorted(all_ott_platforms)) if all_ott_platforms else "N/A"
 
+    display_name = re.sub(r'\s+(?:19|20)\d{2}$', '', base_name).strip()
+
     return script.MOVIE_UPDATE_NOTIFY_TXT.format(
         poster_url=movie_doc.get("poster_url", ""),
         imdb_url=movie_doc.get("imdb_url", ""),
-        filename=base_name,
+        filename=display_name,
         tag=primary_tag,
         genres=genres,
         ott=ott_str,
