@@ -308,21 +308,17 @@ Mᴇꜱꜱᴀɢᴇ : <b>{}</b>"""
 """
 
     MOVIE_UPDATE_NOTIFY_TXT = """
-</b><a href={poster_url}>📥</a><a href={imdb_url}>New {tag} Added</a></b>
-
-<blockquote>✨ ᴛɪᴛʟᴇ : <code>{filename} {year}</code>
-
-
-🎭 ɢᴇɴʀᴇs : <b>{genres}</b>
-📺 ᴏᴛᴛ        : <b>{ott}</b>
-🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
-🎧 ᴀᴜᴅɪᴏ    : <b>{language}</b>
-🔥 ʀᴀᴛɪɴɢ   : <b>{rating}</b>
+<a href={poster_url}>🎬</a> <b>{filename} {year}</b>
+━━━━━━━━━━━━━━━━━━
+➥ <b>Rating :</b> <code>★ {rating}/10</code>
+➥ <b>Genres :</b> <code>{genres}</code>
+➥ <b>OTT :</b> <code>{ott}</code>
+➥ <b>Quality :</b> <code>{quality}</code>
+➥ <b>Audio :</b> <code>{language}</code>
 {episodes}
-</blockquote>
 
+🍁 ᴊᴏɪɴ ɴᴏᴡ :  <a href="https://t.me/filmztube">Filmztube</a>
 
-🔍 <b>Sᴇᴀʀᴄʜ →</b> {search_link}
 """
 
     IMDB_TEMPLATE_TXT = """
