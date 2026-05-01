@@ -20,21 +20,26 @@ fi
 cd "$(dirname "$0")"
 mkdir -p logs
 
-# 4. Install Python requirements
-echo "🐍 Installing Python requirements..."
-pip3 install --upgrade pip
-pip3 install -r requirements.txt
+# 4. Create and use Virtual Environment
+echo "🐍 Setting up Virtual Environment..."
+python3 -m venv venv
+source venv/bin/activate
 
-# 5. Handle environment file check
+# 5. Install Python requirements
+echo "📦 Installing Python requirements inside venv..."
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 6. Handle environment file check
 if [ ! -f .env ]; then
     echo "⚠️ WARNING: .env file not found! Please create it before starting."
 fi
 
-# 6. Start the bot with PM2
+# 7. Start the bot with PM2
 echo "🚀 Starting bot with PM2..."
 pm2 start ecosystem.config.js
 
-# 7. Enable persistence
+# 8. Enable persistence
 echo "💾 Saving PM2 process list and setting up startup..."
 pm2 save
 pm2 startup

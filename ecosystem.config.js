@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "AutoFilterBot",
       script: "bot.py",
-      interpreter: "python3",
+      interpreter: "./venv/bin/python3",
       instances: 1,
       autorestart: true,
       watch: false,
