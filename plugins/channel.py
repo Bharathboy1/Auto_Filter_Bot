@@ -542,12 +542,16 @@ def generate_movie_message(movie_doc, base_name):
         r = 0.0
 
     rating_text = "-" if r == 0.0 else str(rating)
+    year_val = str(movie_doc.get("year") or "")
+    filename_display = base_name
+    if year_val and filename_display.strip().endswith(year_val):
+        filename_display = filename_display.strip()[:-len(year_val)].strip()
     return script.MOVIE_UPDATE_NOTIFY_TXT.format(
         poster_url=movie_doc.get("poster_url", ""),
         imdb_url=movie_doc.get("imdb_url", ""),
-        filename=base_name,
+        filename=filename_display,
         tag=primary_tag,
-        year=movie_doc.get("year") or "",
+        year=year_val,
         genres=genres,
         ott=ott_str,
         quality=quality_str,
