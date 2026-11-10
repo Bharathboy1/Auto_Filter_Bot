@@ -10,6 +10,7 @@ from PIL import Image
 from info import DREAMXBOTZ_IMAGE_FETCH, TMDB_API_KEY, MAX_LIST_ELM
 
 logger = logging.getLogger(__name__)
+
 LONG_IMDB_DESCRIPTION = False
 
 Image.MAX_IMAGE_PIXELS = None
@@ -66,14 +67,8 @@ async def fetch_image(url, size=(860, 1200)):
 
 
 async def close_session():
-    global _session
     if _session and not _session.closed:
         await _session.close()
-
-def list_to_str(lst):
-    if lst:
-        return ", ".join(map(str, lst))
-    return ""
 
 
 def _list_to_str_tmdb(data_list, limit=10, key=None):
@@ -382,94 +377,6 @@ async def get_movie_details(query, bulk=False, id=False, file=None):
         "url": movie.url or f"https://www.imdb.com/title/{imdb_id}"
     }
 
-"""
-async def old_get_movie_details(query, id=False, file=None):
-    try:
-        if not id:
-            query = query.strip().lower()
-            title = query
-            year = re.findall(r'[1-2]\d{3}$', query, re.IGNORECASE)
-            if year:
-                year = list_to_str(year[:1])
-                title = query.replace(year, "").strip()
-            elif file is not None:
-                year = re.findall(r'[1-2]\d{3}', file, re.IGNORECASE)
-                if year:
-                    year = list_to_str(year[:1])
-            else:
-                year = None
-            movieid = ia.search_movie(title.lower(), results=10)
-            if not movieid:
-                return None
-            if year:
-                filtered = list(filter(lambda k: str(k.get('year')) == str(year), movieid))
-                if not filtered:
-                    filtered = movieid
-            else:
-                filtered = movieid
-            
-            filtered_kind = list(filter(lambda k: k.get('kind') in ['movie', 'tv series'], filtered))
-            if not filtered_kind:
-                logger.info("No matches found for kind 'movie' or 'tv series', falling back to filtered list.")
-                movieid = filtered
-            else:
-                movieid = filtered_kind
-            
-            movieid = movieid[0].movieID
-        else:
-            movieid = query
-        movie = ia.get_movie(movieid)
-        ia.update(movie, info=['main', 'vote details'])
-        
-        if movie.get("original air date"):
-            date = movie["original air date"]
-        elif movie.get("year"):
-            date = movie.get("year")
-        else:
-            date = "N/A"
-            
-        plot = movie.get('plot')
-        if plot and len(plot) > 0:
-            plot = plot[0]
-        else:
-            plot = movie.get('plot outline')
-        if plot and len(plot) > 800:
-            plot = plot[:800] + "..."
-            
-        poster_url = movie.get('full-size cover url')
-        return {
-            'title': movie.get('title'),
-            'votes': movie.get('votes'),
-            "aka": list_to_str(movie.get("akas")),
-            "seasons": movie.get("number of seasons"),
-            "box_office": movie.get('box office'),
-            'localized_title': movie.get('localized title'),
-            'kind': movie.get("kind"),
-            "imdb_id": f"tt{movie.get('imdbID')}",
-            "cast": list_to_str(movie.get("cast")),
-            "runtime": list_to_str(movie.get("runtimes")),
-            "countries": list_to_str(movie.get("countries")),
-            "certificates": list_to_str(movie.get("certificates")),
-            "languages": list_to_str(movie.get("languages")),
-            "director": list_to_str(movie.get("director")),
-            "writer": list_to_str(movie.get("writer")),
-            "producer": list_to_str(movie.get("producer")),
-            "composer": list_to_str(movie.get("composer")),
-            "cinematographer": list_to_str(movie.get("cinematographer")),
-            "music_team": list_to_str(movie.get("music department")),
-            "distributors": list_to_str(movie.get("distributors")),
-            'release_date': date,
-            'year': movie.get('year'),
-            'genres': list_to_str(movie.get("genres")),
-            'poster_url': poster_url + "._V1_SX1440.jpg" if poster_url.endswith("@.jpg") else poster_url,
-            'plot': plot,
-            'rating': str(movie.get("rating", "N/A")),
-            'url': f'https://www.imdb.com/title/tt{movieid}'
-        }
-    except Exception as e:
-        logger.exception(f"An error occurred in get_movie_details: {e}")
-        return None
-"""
 
 async def get_movie_detailsx(query, id=False, file=None):
     """
@@ -480,10 +387,10 @@ async def get_movie_detailsx(query, id=False, file=None):
     try:
         data = await _fetch_tmdb_data(q, api_key=TMDB_API_KEY or None)
         if not data:
-            logger.warning(f"TMDB returned no results for '{q}' → switching to IMDb fallback")
+            logger.info(f"TMDB returned no results for '{q}' → switching to IMDb fallback")
             return await get_movie_details(q)
     except Exception as e:
-        logger.error(f"TMDB direct call failed → fallback IMDb: {e}")
+        logger.info(f"TMDB direct call failed → fallback IMDb: {e}")
         return await get_movie_details(q)
 
     # Normalize fields

@@ -1,25 +1,10 @@
 import logging
 import logging.config
-logging.config.fileConfig('logging.conf')
-logging.getLogger().setLevel(logging.INFO)
-logging.getLogger("pyrogram").setLevel(logging.ERROR)
-logging.getLogger("imdbpy").setLevel(logging.ERROR)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logging.getLogger("aiohttp").setLevel(logging.ERROR)
-logging.getLogger("aiohttp.web").setLevel(logging.ERROR)
-
-from pyrogram import Client
-from info import *
 from typing import Union, Optional, AsyncGenerator
-from pyrogram import types
-from aiohttp import web
+from pyrogram import Client, types
+from info import API_ID, API_HASH, BOT_TOKEN, SESSION
 
-from pyrogram import Client
-from info import *
-
+logger = logging.getLogger(__name__)
 
 class dreamcinezoneXBot(Client):
 
@@ -30,15 +15,10 @@ class dreamcinezoneXBot(Client):
             api_hash=API_HASH,
             bot_token=BOT_TOKEN,
             workers=60,
-            plugins={"root": "plugins"},
+            plugins=dict(root= "plugins"),
             sleep_threshold=5,
         )
-    async def iter_messages(
-        self,
-        chat_id: Union[int, str],
-        limit: int,
-        offset: int = 0,
-    ) -> Optional[AsyncGenerator["types.Message", None]]:
+    async def iter_messages(self, chat_id: Union[int, str], limit: int, offset: int = 0,) -> Optional[AsyncGenerator["types.Message", None]]:
         """Iterate through a chat sequentially.
         This convenience method does the same as repeatedly calling :meth:`~pyrogram.Client.get_messages` in a loop, thus saving
         you from the hassle of setting up boilerplate code. It is useful for getting the whole chat messages with a
@@ -60,7 +40,7 @@ class dreamcinezoneXBot(Client):
         Example:
             .. code-block:: python
                 for message in app.iter_messages("pyrogram", 1, 15000):
-                    print(message.text)
+                    logger.info(message.text)
         """
         current = offset
         while True:

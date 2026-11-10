@@ -4,9 +4,9 @@ import pytz
 import string
 import random
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import LinkPreviewOptions, InlineKeyboardMarkup, InlineKeyboardButton
 from database.users_chats_db import db
-from info import ADMINS, PREMIUM_LOGS
+from info import ADMINS, PREMIUM_LOGS, TZ
 from utils import get_seconds, temp
 
 REDEEM_CODE = {}
@@ -17,7 +17,6 @@ def generate_code(length=10):
 
 @Client.on_message(filters.command("add_redeem") & filters.user(ADMINS))
 async def add_redeem_code(client, message):
-    user_id = message.from_user.id
     if len(message.command) == 3:
         try:
             time = message.command[1]
@@ -47,7 +46,7 @@ async def add_redeem_code(client, message):
             <b> <u>Click on the code above</u> to copy it instantly!</b>
             <b> <u>Send the copied code to the bot</u>\n to unlock your premium features!</b>
 
-            <b>🚀 Enjoy your premium access! 🔥</u></b>
+            <b>🚀 Enjoy your premium access! 🔥</b>
             """
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔑 Redeem Now 🔥", url=f"https://t.me/{temp.U_NAME}")]])
         await message.reply_text(text, reply_markup=keyboard)
@@ -63,7 +62,7 @@ async def redeem_code(client, message):
 
         if redeem_code in REDEEM_CODE:
             try:
-                time = REDEEM_CODE.pop(redeem_code)
+                time = REDEEM_CODE[redeem_code]
                 user = await client.get_users(user_id)
                 try:
                     seconds = await get_seconds(time)
@@ -78,27 +77,28 @@ async def redeem_code(client, message):
                     if current_expiry:
                         current_expiry = current_expiry.replace(tzinfo=pytz.utc)
                     if current_expiry and current_expiry > now_aware:
-                        expiry_str_in_ist = current_expiry.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%d-%m-%Y\n⏱️ Expiry Time: %I:%M:%S %p")
+                        expiry_str_in_ist = current_expiry.astimezone(TZ).strftime("%d-%m-%Y\n⏱️ Expiry Time: %I:%M:%S %p")
                         await message.reply_text(
                             f"🚫 <b>Yᴏᴜ ᴀʟʀᴇᴀᴅʏ ʜᴀᴠᴇ ᴀᴄᴛɪᴠᴇ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇss!</b>\n\n"
                             f"⏳ <b>Cᴜʀʀᴇɴᴛ Pʀᴇᴍɪᴜᴍ Exᴘɪʀʏ:</b> {expiry_str_in_ist}\n\n"
                             f"<i>Yᴏᴜ ᴄᴀɴɴᴏᴛ ʀᴇᴅᴇᴇᴍ ᴀɴᴏᴛʜᴇʀ ᴄᴏᴅᴇ ᴜɴᴛɪʟ ʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇss ᴇxᴘɪʀᴇs.</i>\n\n"
                             f"<b>Tʜᴀɴᴋ ʏᴏᴜ ғᴏʀ ᴜsɪɴɢ ᴏᴜʀ sᴇʀᴠɪᴄᴇ! 🔥</b>",
-                            disable_web_page_preview=True
+                            link_preview_options=LinkPreviewOptions(is_disabled=True)
                         )
                         return
+                    REDEEM_CODE.pop(redeem_code, None)
                     expiry_time = now_aware + timedelta(seconds=seconds)
                     user_data = {"id": user_id, "expiry_time": expiry_time}
                     await db.update_user(user_data)
 
-                    expiry_str_in_ist = expiry_time.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%d-%m-%Y\n⏱️ Expiry Time: %I:%M:%S %p")
+                    expiry_str_in_ist = expiry_time.astimezone(TZ).strftime("%d-%m-%Y\n⏱️ Expiry Time: %I:%M:%S %p")
                     await message.reply_text(
                         f"🎉 <b>Premium activated successfully! 🚀</b>\n\n"
                         f"👤 <b>User:</b> {user.mention}\n"
                         f"⚡ <b>User ID:</b> <code>{user_id}</code>\n"
                         f"⏳ <b>Premium Access Duration:</b> <code>{time}</code>\n"
                         f"⌛️ <b>Expiry Date:</b> {expiry_str_in_ist}",
-                        disable_web_page_preview=True
+                        link_preview_options=LinkPreviewOptions(is_disabled=True)
                     )
                     log_message = f"""
                         #Redeem_Premium 🔓
@@ -113,7 +113,7 @@ async def redeem_code(client, message):
                     await client.send_message(
                         PREMIUM_LOGS,
                         text=log_message,
-                        disable_web_page_preview=True
+                        link_preview_options=LinkPreviewOptions(is_disabled=True)
                     )
                 else:
                     await message.reply_text("Invalid time format in redeem code.")

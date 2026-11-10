@@ -9,7 +9,9 @@ from dreamxbotz.Bot import multi_clients, work_loads
 from dreamxbotz.server.exceptions import FIleNotFound, InvalidHash
 from dreamxbotz.util.custom_dl import ByteStreamer
 from dreamxbotz.util.render_template import render_page
-from info import *
+import info
+
+logger = logging.getLogger(__name__)
 
 
 routes = web.RouteTableDef()
@@ -41,7 +43,7 @@ async def watch_handler(request: web.Request):
     except (AttributeError, BadStatusLine, ConnectionResetError):
         pass
     except Exception as e:
-        logging.critical(e.with_traceback(None))
+        logger.critical(e.with_traceback(None))
         raise web.HTTPInternalServerError(text=str(e))
 
 @routes.get(r"/{path:\S+}", allow_head=True)
@@ -71,7 +73,7 @@ async def stream_handler(request: web.Request):
     except (AttributeError, BadStatusLine, ConnectionResetError):
         pass
     except Exception as e:
-        logging.critical(e.with_traceback(None))
+        logger.critical(e.with_traceback(None))
         raise web.HTTPInternalServerError(text=str(e))
 
 class_cache = {}
@@ -82,20 +84,20 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
     index = min(work_loads, key=work_loads.get)
     faster_client = multi_clients[index]
     
-    if MULTI_CLIENT:
-        logging.info(f"Client {index} is now serving {request.remote}")
+    if info.MULTI_CLIENT:
+        logger.info(f"Client {index} is now serving {request.remote}")
 
     if faster_client in class_cache:
         tg_connect = class_cache[faster_client]
-        logging.debug(f"Using cached ByteStreamer object for client {index}")
+        logger.debug(f"Using cached ByteStreamer object for client {index}")
     else:
-        logging.debug(f"Creating new ByteStreamer object for client {index}")
+        logger.debug(f"Creating new ByteStreamer object for client {index}")
         tg_connect = ByteStreamer(faster_client)
         class_cache[faster_client] = tg_connect
     file_id = await tg_connect.get_file_properties(id)
     
     if file_id.unique_id[:6] != secure_hash:
-        logging.debug(f"Invalid hash for message with ID {id}")
+        logger.debug(f"Invalid hash for message with ID {id}")
         raise InvalidHash
     
     file_size = file_id.file_size
@@ -114,7 +116,6 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
             body="416: Range not satisfiable",
             headers={"Content-Range": f"bytes */{file_size}"},
         )
-
     chunk_size = 1024 * 1024
     until_bytes = min(until_bytes, file_size - 1)
 
@@ -123,14 +124,13 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
     last_part_cut = until_bytes % chunk_size + 1
 
     req_length = until_bytes - from_bytes + 1
-    part_count = math.ceil(until_bytes / chunk_size) - math.floor(offset / chunk_size)
+    part_count = math.ceil((until_bytes + 1) / chunk_size) - math.floor(offset / chunk_size)
     body = tg_connect.yield_file(
         file_id, index, offset, first_part_cut, last_part_cut, part_count, chunk_size
     )
 
     mime_type = file_id.mime_type
     file_name = file_id.file_name
-    disposition = "attachment"
 
     if mime_type:
         if not file_name:
@@ -140,24 +140,27 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
                 file_name = f"{secrets.token_hex(2)}.unknown"
     else:
         if file_name:
-            mime_type = mimetypes.guess_type(file_id.file_name)
+            mime_type = mimetypes.guess_type(file_id.file_name)[0] or "application/octet-stream"
         else:
             mime_type = "application/octet-stream"
             file_name = f"{secrets.token_hex(2)}.unknown"
+    
+    resp_headers = {
+        "Content-Type": f"{mime_type}",
+        "Content-Length": str(req_length),
+        "Content-Disposition": f'inline; filename="{file_name}"',
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "Range, Content-Type",
+        "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges",
+    }
+    
+    if range_header:
+        resp_headers["Content-Range"] = f"bytes {from_bytes}-{until_bytes}/{file_size}"
 
     return web.Response(
         status=206 if range_header else 200,
         body=body,
-        headers={
-            "Content-Type": f"{mime_type}",
-            "Content-Range": f"bytes {from_bytes}-{until_bytes}/{file_size}",
-            "Content-Length": str(req_length),
-            "Content-Disposition": f'inline; filename="{file_name}"',  # inline for streaming
-            "Accept-Ranges": "bytes",
-            # CORS headers for JSMKV
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-            "Access-Control-Allow-Headers": "Range, Content-Type",
-            "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges",
-        },
+        headers=resp_headers
     )

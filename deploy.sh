@@ -11,7 +11,7 @@ sudo apt-get install -y python3 python3-pip git nodejs npm
 
 # ✅ NEW: Install MediaInfo (fix: libmediainfo.so.0 missing)
 echo "📦 Installing MediaInfo library..."
-sudo apt-get install -y libmediainfo0v5 mediainfo
+sudo apt-get install -y libmediainfo0v5 mediainfo libmediainfo-dev
 
 # 2. Install PM2 globally if not present
 if ! command -v pm2 &> /dev/null

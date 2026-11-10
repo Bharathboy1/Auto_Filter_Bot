@@ -1,16 +1,14 @@
+import logging
 import os
 from pyrogram import Client, filters, enums
-from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant, MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
-from info import LANDSCAPE_POSTER, TMDB_ON_SEARCH
-from utils import extract_user, get_file_id, get_poster, get_posterx
+from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant
+from utils import extract_user, get_file_id
 from datetime import datetime
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-import logging
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from database.ia_filterdb import dreamxbotz_get_movies, dreamxbotz_get_series
 from pyrogram.enums import ParseMode
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
 
 @Client.on_message(filters.command('id'))
 async def showid(client, message):
@@ -22,8 +20,7 @@ async def showid(client, message):
         username = message.from_user.username
         dc_id = message.from_user.dc_id or ""
         await message.reply_text(
-            f"<b>➲ First Name:</b> {first}\n<b>➲ Last Name:</b> {last}\n<b>➲ Username:</b> {username}\n<b>➲ Telegram ID:</b> <code>{user_id}</code>\n<b>➲ Data Centre:</b> <code>{dc_id}</code>",
-            quote=True
+            f"<b>➲ First Name:</b> {first}\n<b>➲ Last Name:</b> {last}\n<b>➲ Username:</b> {username}\n<b>➲ Telegram ID:</b> <code>{user_id}</code>\n<b>➲ Data Centre:</b> <code>{dc_id}</code>"
         )
     elif chat_type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         _id = ""
@@ -51,8 +48,7 @@ async def showid(client, message):
                 f"<code>{file_info.file_id}</code>\n"
             )
         await message.reply_text(
-            _id,
-            quote=True
+            _id
         )
 
 @Client.on_message(filters.command(["info"]))
@@ -101,12 +97,11 @@ async def who_is(client, message):
             message=chat_photo.big_file_id
         )
         buttons = [[
-            InlineKeyboardButton('🔐 Close', callback_data='close_data')
+            InlineKeyboardButton('🔐 Close', callback_data='close_data', style=enums.ButtonStyle.DANGER)
         ]]
         reply_markup = InlineKeyboardMarkup(buttons)
         await message.reply_photo(
             photo=local_user_photo,
-            quote=True,
             reply_markup=reply_markup,
             caption=message_out_str,
             parse_mode=enums.ParseMode.HTML,
@@ -115,78 +110,17 @@ async def who_is(client, message):
         os.remove(local_user_photo)
     else:
         buttons = [[
-            InlineKeyboardButton('🔐 Close', callback_data='close_data')
+            InlineKeyboardButton('🔐 Close', callback_data='close_data', style=enums.ButtonStyle.DANGER)
         ]]
         reply_markup = InlineKeyboardMarkup(buttons)
         await message.reply_text(
             text=message_out_str,
             reply_markup=reply_markup,
-            quote=True,
             parse_mode=enums.ParseMode.HTML,
             disable_notification=True
         )
     await status_message.delete()
 
-@Client.on_message(filters.command(["imdb", 'search']))
-async def imdb_search(client, message):
-    if ' ' in message.text:
-        k = await message.reply('Searching ImDB')
-        r, title = message.text.split(None, 1)
-        movies = await get_poster(title, bulk=True)
-        if not movies:
-            return await message.reply("No results Found")
-        btn = [
-            [
-                InlineKeyboardButton(
-                    text=f"{movie.get('title')} - {movie.get('year')}",
-                    callback_data=f"imdb#{movie.movieID}",
-                )
-            ]
-            for movie in movies
-        ]
-        await k.edit('Here is what i found on IMDb', reply_markup=InlineKeyboardMarkup(btn))
-    else:
-        await message.reply('Give me a movie / series Name')
-
-@Client.on_callback_query(filters.regex('^imdb'))
-async def imdb_callback(bot: Client, quer_y: CallbackQuery):
-    i, movie = quer_y.data.split('#')
-    imdb = await get_poster(query=movie, id=True)
-    btn = [
-            [
-                InlineKeyboardButton(
-                    text=f"{imdb.get('title')}",
-                    url=imdb['url'],
-                )
-            ]
-        ]
-    message = quer_y.message.reply_to_message or quer_y.message
-    if imdb:
-         caption = f"""
-<b>Qᴜᴇʀʏ: {imdb['title']}</b>
-
-🏷 Tɪᴛʟᴇ: <a href="{imdb['url']}">{imdb['title']}</a>
-🎭 Gᴇɴʀᴇꜱ: {imdb.get('genres', 'N/A')}
-📆 Yᴇᴀʀ: <a href="{imdb['url']}/releaseinfo">{imdb['year']}</a>
-🌟 Rᴀᴛɪɴɢ: <a href="{imdb['url']}/ratings">{imdb['rating']}</a>/10
-"""
-    else:
-        caption = "No Results"
-    if imdb.get('poster'):
-        try:
-            await quer_y.message.reply_photo(photo=imdb['poster'], caption=caption, reply_markup=InlineKeyboardMarkup(btn))
-        except (MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty):
-            pic = imdb.get('poster')
-            poster = pic.replace('.jpg', "._V1_UX360.jpg")
-            await quer_y.message.reply_photo(photo=poster, caption=caption, reply_markup=InlineKeyboardMarkup(btn))
-        except Exception as e:
-            logger.exception(e)
-            await quer_y.message.reply(caption, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=False)
-        await quer_y.message.delete()
-    else:
-        await quer_y.message.edit(caption, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=False)
-    await quer_y.answer()
-        
 @Client.on_message(filters.private & filters.command("movies"))
 async def dreamxbotz_list_movies(client, message):
     try:
@@ -207,7 +141,7 @@ async def dreamxbotz_list_series(client, message):
         series_data = await dreamxbotz_get_series()
         if not series_data:
             return await message.reply("❌ No Recent Series Found", parse_mode=ParseMode.HTML)       
-        msg = "<b>Latest Uploades List ✅</b>\n\n"
+        msg = "<b>Latest Uploads List ✅</b>\n\n"
         msg += "<b>📺 Series:</b>\n"
         for i, (title, seasons) in enumerate(series_data.items(), 1):
             season_list = ", ".join(f"{s}" for s in seasons)

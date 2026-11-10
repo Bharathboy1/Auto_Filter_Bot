@@ -1,14 +1,24 @@
+from pyrogram import enums
 
-import pytz
+import logging
 import datetime
 from Script import script 
-from info import *
+from info import ADMINS, PREMIUM_LOGS, STAR_PREMIUM_PLANS, SUBSCRIPTION, TZ
 from utils import get_seconds, temp
 from database.users_chats_db import db 
 import asyncio
 from pyrogram import Client, filters 
 from pyrogram.errors.exceptions.bad_request_400 import MessageTooLong
-from pyrogram.types import *
+from pyrogram.types import (
+    LinkPreviewOptions,
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    LabeledPrice,
+    PreCheckoutQuery
+)
+
+logger = logging.getLogger(__name__)
 
 
 @Client.on_message(filters.command("remove_premium") & filters.user(ADMINS))
@@ -23,7 +33,7 @@ async def remove_premium(client, message):
                 text=script.PREMIUM_END_TEXT.format(user.mention)
             )
         else:
-            await message.reply_text("ᴜɴᴀʙʟᴇ ᴛᴏ ʀᴇᴍᴏᴠᴇ ᴜꜱᴇᴅ !\nᴀʀᴇ ʏᴏᴜ ꜱᴜʀᴇ, ɪᴛ ᴡᴀꜱ ᴀ ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀ ɪᴅ ?")
+            await message.reply_text("ᴜɴᴀʙʟᴇ ᴛᴏ ʀᴇᴍᴏᴠᴇ ᴜꜱᴇʀ !\nᴀʀᴇ ʏᴏᴜ ꜱᴜʀᴇ, ɪᴛ ᴡᴀꜱ ᴀ ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀ ɪᴅ ?")
     else:
         await message.reply_text("ᴜꜱᴀɢᴇ : /remove_premium user_id") 
 
@@ -37,15 +47,18 @@ async def myplan(client, message):
 
         if data and data.get("expiry_time"):
             expiry = data.get("expiry_time")
-            expiry_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata"))
+            expiry_ist = expiry.astimezone(TZ)
             expiry_str_in_ist = expiry_ist.strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")
 
-            current_time = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+            current_time = datetime.datetime.now(TZ)
             time_left = expiry_ist - current_time
             days = time_left.days
-            hours, remainder = divmod(time_left.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            time_left_str = f"{days} ᴅᴀʏꜱ, {hours} ʜᴏᴜʀꜱ, {minutes} ᴍɪɴᴜᴛᴇꜱ"
+            if days < 0:
+                time_left_str = "Expired"
+            else:
+                hours, remainder = divmod(time_left.seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                time_left_str = f"{days} ᴅᴀʏꜱ, {hours} ʜᴏᴜʀꜱ, {minutes} ᴍɪɴᴜᴛᴇꜱ"
 
             caption = (
                 f"⚜️ <b>ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀ ᴅᴀᴛᴀ :</b>\n\n"
@@ -75,7 +88,7 @@ async def myplan(client, message):
                 )
             )
     except Exception as e:
-        print(e)
+        logger.error("myplan error: %s", e)
 
 @Client.on_message(filters.command("get_premium") & filters.user(ADMINS))
 async def get_premium(client, message):
@@ -85,24 +98,27 @@ async def get_premium(client, message):
         data = await db.get_user(user_id)  
         if data and data.get("expiry_time"):
             expiry = data.get("expiry_time") 
-            expiry_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata"))
-            expiry_str_in_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")            
-            current_time = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+            expiry_ist = expiry.astimezone(TZ)
+            expiry_str_in_ist = expiry_ist.strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")            
+            current_time = datetime.datetime.now(TZ)
             time_left = expiry_ist - current_time
             days = time_left.days
-            hours, remainder = divmod(time_left.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            time_left_str = f"{days} days, {hours} hours, {minutes} minutes"
+            if days < 0:
+                time_left_str = "Expired"
+            else:
+                hours, remainder = divmod(time_left.seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                time_left_str = f"{days} days, {hours} hours, {minutes} minutes"
             await message.reply_text(f"⚜️ ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀ ᴅᴀᴛᴀ :\n\n👤 ᴜꜱᴇʀ : {user.mention}\n⚡ ᴜꜱᴇʀ ɪᴅ : <code>{user_id}</code>\n⏰ ᴛɪᴍᴇ ʟᴇꜰᴛ : {time_left_str}\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}")
         else:
-            await message.reply_text("ɴᴏ ᴀɴʏ ᴘʀᴇᴍɪᴜᴍ ᴅᴀᴛᴀ ᴏꜰ ᴛʜᴇ ᴡᴀꜱ ꜰᴏᴜɴᴅ ɪɴ ᴅᴀᴛᴀʙᴀꜱᴇ !")
+            await message.reply_text("ɴᴏ ᴘʀᴇᴍɪᴜᴍ ᴅᴀᴛᴀ ᴏꜰ ᴛʜɪꜱ ᴜꜱᴇʀ ᴡᴀꜱ ꜰᴏᴜɴᴅ ɪɴ ᴅᴀᴛᴀʙᴀꜱᴇ !")
     else:
         await message.reply_text("ᴜꜱᴀɢᴇ : /get_premium user_id")
 
 @Client.on_message(filters.command("add_premium") & filters.user(ADMINS))
 async def give_premium_cmd_handler(client, message):
     if len(message.command) == 4:
-        time_zone = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+        time_zone = datetime.datetime.now(TZ)
         current_time = time_zone.strftime("%d-%m-%Y\n⏱️ ᴊᴏɪɴɪɴɢ ᴛɪᴍᴇ : %I:%M:%S %p") 
         user_id = int(message.command[1])  
         user = await client.get_users(user_id)
@@ -114,13 +130,13 @@ async def give_premium_cmd_handler(client, message):
             await db.update_user(user_data) 
             data = await db.get_user(user_id)
             expiry = data.get("expiry_time")   
-            expiry_str_in_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")         
-            await message.reply_text(f"ᴘʀᴇᴍɪᴜᴍ ᴀᴅᴅᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ✅\n\n👤 ᴜꜱᴇʀ : {user.mention}\n⚡ ᴜꜱᴇʀ ɪᴅ : <code>{user_id}</code>\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time}</code>\n\n⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}", disable_web_page_preview=True)
+            expiry_str_in_ist = expiry.astimezone(TZ).strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")         
+            await message.reply_text(f"ᴘʀᴇᴍɪᴜᴍ ᴀᴅᴅᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ✅\n\n👤 ᴜꜱᴇʀ : {user.mention}\n⚡ ᴜꜱᴇʀ ɪᴅ : <code>{user_id}</code>\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time}</code>\n\n⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}", link_preview_options=LinkPreviewOptions(is_disabled=True))
             await client.send_message(
                 chat_id=user_id,
-                text=f"👋 ʜᴇʏ {user.mention},\nᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ᴘᴜʀᴄʜᴀꜱɪɴɢ ᴘʀᴇᴍɪᴜᴍ.\nᴇɴᴊᴏʏ !! ✨🎉\n\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time}</code>\n⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}", disable_web_page_preview=True              
+                text=f"👋 ʜᴇʏ {user.mention},\nᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ᴘᴜʀᴄʜᴀꜱɪɴɢ ᴘʀᴇᴍɪᴜᴍ.\nᴇɴᴊᴏʏ !! ✨🎉\n\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time}</code>\n⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}", link_preview_options=LinkPreviewOptions(is_disabled=True)              
             )    
-            await client.send_message(PREMIUM_LOGS, text=f"#Added_Premium\n\n👤 ᴜꜱᴇʀ : {user.mention}\n⚡ ᴜꜱᴇʀ ɪᴅ : <code>{user_id}</code>\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time}</code>\n\n⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}", disable_web_page_preview=True)
+            await client.send_message(PREMIUM_LOGS, text=f"#Added_Premium\n\n👤 ᴜꜱᴇʀ : {user.mention}\n⚡ ᴜꜱᴇʀ ɪᴅ : <code>{user_id}</code>\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time}</code>\n\n⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}", link_preview_options=LinkPreviewOptions(is_disabled=True))
                     
         else:
             await message.reply_text(
@@ -137,25 +153,33 @@ async def give_premium_cmd_handler(client, message):
 @Client.on_message(filters.command("premium_users") & filters.user(ADMINS))
 async def premium_user(client, message):
     aa = await message.reply_text("<i>ꜰᴇᴛᴄʜɪɴɢ...</i>")
-    new = f" ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀꜱ ʟɪꜱᴛ :\n\n"
+    new = " ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀꜱ ʟɪꜱᴛ :\n\n"
     user_count = 1
-    users = await db.get_all_users()
-    async for user in users:
-        data = await db.get_user(user['id'])
-        if data and data.get("expiry_time"):
-            expiry = data.get("expiry_time") 
-            expiry_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata"))
-            expiry_str_in_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")            
-            current_time = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
-            time_left = expiry_ist - current_time
-            days = time_left.days
+    users = await db.get_all_premium_user_data()
+    async for data in users:
+        expiry = data.get("expiry_time")
+        if not expiry:
+            continue
+        expiry_ist = expiry.astimezone(TZ)
+        expiry_str_in_ist = expiry_ist.strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")            
+        current_time = datetime.datetime.now(TZ)
+        time_left = expiry_ist - current_time
+        days = time_left.days
+        if days < 0:
+            time_left_str = "Expired"
+        else:
             hours, remainder = divmod(time_left.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            time_left_str = f"{days} days, {hours} hours, {minutes} minutes"	 
-            new += f"{user_count}. {(await client.get_users(user['id'])).mention}\n👤 ᴜꜱᴇʀ ɪᴅ : {user['id']}\n⏳ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}\n⏰ ᴛɪᴍᴇ ʟᴇꜰᴛ : {time_left_str}\n"
-            user_count += 1
-        else:
-            pass
+            time_left_str = f"{days} days, {hours} hours, {minutes} minutes"
+        
+        try:
+            user_obj = await client.get_users(data['id'])
+            mention = user_obj.mention
+        except Exception:
+            mention = f"<a href='tg://user?id={data['id']}'>User</a>"
+            
+        new += f"{user_count}. {mention}\n👤 ᴜꜱᴇʀ ɪᴅ : {data['id']}\n⏳ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}\n⏰ ᴛɪᴍᴇ ʟᴇꜰᴛ : {time_left_str}\n"
+        user_count += 1
     try:    
         await aa.edit_text(new)
     except MessageTooLong:
@@ -177,7 +201,7 @@ async def plan(client, message):
             InlineKeyboardButton('• ʀᴇꜰᴇʀ ꜰʀɪᴇɴᴅꜱ', callback_data='reffff'),
             InlineKeyboardButton('ꜰʀᴇᴇ ᴛʀɪᴀʟ •', callback_data='free')
         ],[
-            InlineKeyboardButton('🚫 ᴄʟᴏꜱᴇ 🚫', callback_data='close_data')
+            InlineKeyboardButton('🚫 ᴄʟᴏꜱᴇ 🚫', callback_data='close_data', style=enums.ButtonStyle.DANGER)
         ]]
     msg = await message.reply_photo(
         photo="https://graph.org/file/86da2027469565b5873d6.jpg",
@@ -199,8 +223,10 @@ async def premium_button(client, callback_query: CallbackQuery):
         amount = int(callback_query.data.split("_")[1])
         if amount in STAR_PREMIUM_PLANS:
             try:
-                buttons = [[	
-                    InlineKeyboardButton("ᴄᴀɴᴄᴇʟ 🚫", callback_data="close_data"),		    				
+                buttons = [[
+                    InlineKeyboardButton("Pay with Stars ??", pay=True, style=enums.ButtonStyle.PRIMARY)
+                ], [
+                    InlineKeyboardButton("? Close ?", callback_data="close_data", style=enums.ButtonStyle.DANGER)
                 ]]
                 reply_markup = InlineKeyboardMarkup(buttons)
                 await client.send_invoice(
@@ -219,30 +245,30 @@ async def premium_button(client, callback_query: CallbackQuery):
                 )
                 await callback_query.answer()
             except Exception as e:
-                print(f"Error sending invoice: {e}")
+                logger.error("Error sending invoice: %s", e)
                 await callback_query.answer("🚫 Error Processing Your Payment. Try again.", show_alert=True)
         else:
             await callback_query.answer("⚠️ Invalid Premium Package.", show_alert=True)
     except Exception as e:
-        print(f"Error In buy_ - {e}")
+        logger.error("Error In buy_: %s", e)
  
 @Client.on_pre_checkout_query()
 async def pre_checkout_handler(client, query: PreCheckoutQuery):
     try:
         if query.payload.startswith("dreamxpremium_"):
-            await query.answer(success=True)
+            await query.answer(ok=True)
         else:
-            await query.answer(success=False, error_message="⚠️ Invalid Purchase Type.", show_alert=True)
+            await query.answer(ok=False, error_message="⚠️ Invalid Purchase Type.")
     except Exception as e:
-        print(f"Pre-checkout error: {e}")
-        await query.answer(success=False, error_message="🚫 Unexpected Error Occurred." , show_alert=True)
+        logger.error("Pre-checkout error: %s", e)
+        await query.answer(ok=False, error_message="🚫 Unexpected Error Occurred.")
 
 @Client.on_message(filters.successful_payment)
 async def successful_premium_payment(client, message):
     try:
         amount = int(message.successful_payment.total_amount)
         user_id = message.from_user.id
-        time_zone = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+        time_zone = datetime.datetime.now(TZ)
         current_time = time_zone.strftime("%d-%m-%Y | %I:%M:%S %p") 
         if amount in STAR_PREMIUM_PLANS:
             time = STAR_PREMIUM_PLANS[amount]
@@ -253,15 +279,15 @@ async def successful_premium_payment(client, message):
                 await db.update_user(user_data)
                 data = await db.get_user(user_id)
                 expiry = data.get("expiry_time")
-                expiry_str_in_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%d-%m-%Y | %I:%M:%S %p")    
-                await message.reply(text=f"Thankyou For Purchasing Premium Service Using Star ✅\n\nSubscribtion Time - {time}\nExpire In - {expiry_str_in_ist}", disable_web_page_preview=True)                
-                await client.send_message(PREMIUM_LOGS, text=f"#Purchase_Premium_With_Start\n\n👤 ᴜꜱᴇʀ - {message.user.mention}\n\n⚡ ᴜꜱᴇʀ ɪᴅ - <code>{user_id}</code>\n\n🚫 ꜱᴛᴀʀ ᴘᴀʏ - {amount}⭐\n\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ - {time}\n\n⌛️ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ - {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ - {expiry_str_in_ist}", disable_web_page_preview=True)
+                expiry_str_in_ist = expiry.astimezone(TZ).strftime("%d-%m-%Y | %I:%M:%S %p")    
+                await message.reply(text=f"Thank you For Purchasing Premium Service Using Star ✅\n\nSubscription Time - {time}\nExpire In - {expiry_str_in_ist}", link_preview_options=LinkPreviewOptions(is_disabled=True))                
+                await client.send_message(PREMIUM_LOGS, text=f"#Purchase_Premium_With_Star\n\n👤 ᴜꜱᴇʀ - {message.from_user.mention}\n\n⚡ ᴜꜱᴇʀ ɪᴅ - <code>{user_id}</code>\n\n🚫 ꜱᴛᴀʀ ᴘᴀʏ - {amount}⭐\n\n⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ - {time}\n\n⌛️ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ - {current_time}\n\n⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ - {expiry_str_in_ist}", link_preview_options=LinkPreviewOptions(is_disabled=True))
             else:
                 await message.reply("⚠️ Invalid Premium Time.")
         else:
             await message.reply("⚠️ Invalid Premium Package.")
     except Exception as e:
-        print(f"Error Processing Premium Payment: {e}")
+        logger.error("Error Processing Premium Payment: %s", e)
         await message.reply("✅ Thank You For Your Payment! (Error Logging Details)")
 
 
